@@ -1,28 +1,41 @@
 #!/usr/bin/perl
 
-use POE;
-use POE::Component::FastCGI;
-
+use AnyEvent;
+use AnyEvent::FCGI;
 use DBI;
 use DBD::mysql;
+use Data::Dump;
 
-use strcict;
+use strict;
 
-my $dbh = DBI->connect("dbi:mysql:vul:localhost", "vul",  "vul") or die "Cant connect MYSQl";
+open STDERR, '>>', '/tmp/fcgi.log' or die 'Cant open '.$!;
 
-POE::Component::FastCGI->new(
-   Address => '/var/run/hh.sock',
-   Handlers =>  [
-        			[ '/' => 'poe_event_name' ],
-				]
-     Session => 'MAIN',
-  );
+my $dbh = DBI->connect("dbi:mysql:hh:localhost", 'hh',  'hh') or die "Cant connect MYSQl";
 
-  sub default {
-     my($request) = @_;
+my $fcgi = new AnyEvent::FCGI(
+		socket     => '/var/run/hh.socket',
+        on_request => &cb_req_handler
+    );
 
-     my $response = $request->make_response;
-     $response->header("Content-type" => "text/html");
-     $response->content("A page");
-     $response->send;
-  }
+#    my $timer = AnyEvent->timer(
+#        after => 10,
+#        interval => 0,
+#        cb => sub {
+#            # shut down server after 10 seconds
+#            $fcgi = undef;
+#        }
+#    );
+
+AnyEvent->loop;
+
+sub cb_req_handler
+{
+            my $request = shift;
+			dd $request;
+
+			my $tmpl = `cat tmpl/firms`;
+			
+            $request->respond($tmpl, 'Content-Type' => 'text/plain',);
+                #'OH HAI! QUERY_STRING is ' . $request->param('QUERY_STRING'),
+      
+}
